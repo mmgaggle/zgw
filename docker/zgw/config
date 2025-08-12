@@ -2,5 +2,5 @@
 rgw backend store = dbstore
 rgw config store = dbstore
 rgw filter = posix
-rgw_posix_base_path = /var/lib/ceph/radosgw/buckets
-rgw_posix_database_root = /var/lib/ceph/radosgw/db
+rgw_posix_base_path = /scratch-1/rgw/buckets
+rgw_posix_database_root = /scratch-1/rgw/db

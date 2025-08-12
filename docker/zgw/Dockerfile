@@ -1,4 +1,4 @@
-FROM quay.io/ceph/ceph:v19.2.0-20240927
+FROM quay.io/ceph/ceph:v19.2.3-20250717
 
 USER root
 COPY config /etc/ceph/ceph.conf
