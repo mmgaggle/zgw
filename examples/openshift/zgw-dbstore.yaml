@@ -19,8 +19,10 @@ data:
   ceph.conf: |
     [client]
     rgw backend store = dbstore
+    rgw config store = dbstore
     dbstore db dir = /var/lib/ceph/radosgw
     dbstore db name prefix = dbstore
+    dbstore config uri = file:/var/lib/ceph/radosgw/dbstore-config.db
     debug rgw = 20
   config: |
     [default]
@@ -76,13 +78,13 @@ spec:
         env:
           - name: COMPONENT
             value: zgw-dbstore
-          - name: AWS_SECRET_KEY
+          - name: AWS_SECRET_ACCESS_KEY
             valueFrom:
               secretKeyRef:
                 name: zgw-user
                 key: SECRET_KEY
                 optional: false
-          - name: AWS_ACCESS_KEY
+          - name: AWS_ACCESS_KEY_ID
             valueFrom:
               secretKeyRef:
                 name: zgw-user

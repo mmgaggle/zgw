@@ -1,0 +1,142 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: zgw-posix-user
+  labels:
+    app.kubernetes.io/name: zgw-posix
+data:
+  SECRET_KEY: emlwcHk=
+  ACCESS_KEY: emlwcHk=
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zgw-posix-cm
+  labels:
+    app.kubernetes.io/name: zgw-posix
+data:
+  ceph.conf: |
+    [client]
+        rgw backend store = dbstore
+        rgw config store  = dbstore
+        rgw filter        = posix
+        debug rgw = 20
+  config: |
+    [default]
+    addressing_style = path
+  bashrc: |
+    alias s5cmd="s5cmd --endpoint-url http://s3-posix.default.svc.cluster.local"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zgw-posix-driver-pvc
+  labels:
+    app.kubernetes.io/name: zgw-posix
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zgw-posix-db-pvc
+  labels:
+    app.kubernetes.io/name: zgw-posix
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zgw-posix-store-pvc
+  labels:
+    app.kubernetes.io/name: zgw-posix
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zgw-posix
+  labels:
+    app: zgw-posix
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: zgw-posix
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: zgw-posix
+    spec:
+      securityContext:
+        runAsUser: 167
+        runAsGroup: 167
+        fsGroup: 167
+      volumes:
+        - name: zgw-posix-driver-pvc
+          persistentVolumeClaim:
+            claimName: zgw-posix-driver-pvc
+        - name: zgw-posix-db-pvc
+          persistentVolumeClaim:
+            claimName: zgw-posix-db-pvc
+        - name: zgw-posix-store-pvc
+          persistentVolumeClaim:
+            claimName: zgw-posix-store-pvc
+      containers:
+      - name: zgw-posix
+        image: quay.io/dparkes/zgw-posix:latest
+        ports:
+        - containerPort: 7480
+        volumeMounts:
+          - mountPath: "/var/lib/ceph/rgw_posix_driver"
+            name: zgw-posix-driver-pvc
+          - mountPath: "/var/lib/ceph/rgw_posix_db"
+            name: zgw-posix-db-pvc
+          - mountPath: "/var/lib/ceph/radosgw"
+            name: zgw-posix-store-pvc
+        env:
+          - name: COMPONENT
+            value: zgw-posix
+          - name: RGW_POSIX_BASE_PATH
+            value: /var/lib/ceph/rgw_posix_driver
+          - name: RGW_POSIX_DATABASE_ROOT
+            value: /var/lib/ceph/rgw_posix_db
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: zgw-posix-user
+                key: SECRET_KEY
+                optional: false
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: zgw-posix-user
+                key: ACCESS_KEY
+                optional: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: s3-posix
+spec:
+  selector:
+    app.kubernetes.io/name: zgw-posix
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 7480
